@@ -13,9 +13,9 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.nio.channels.ClosedByInterruptException;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -36,7 +36,9 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
     private final Supplier<Set<URI>> serverSupplier;
     private ZMQ.Socket publisher;
     private List<Thread> subscribers;
-
+    private AtomicInteger receiveCounter = new AtomicInteger(0);
+    private AtomicInteger sendCounter = new AtomicInteger(0);
+    private AtomicLong latency = new AtomicLong(0);
 
     public DistributedCache(Cache<String, V> delegate, URI localBind, boolean excludeLocal, URI... servers) {
         this(delegate, localBind, excludeLocal, new StaticServerSupplier(servers));
@@ -123,6 +125,8 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
             default:
                 break;
         }
+        receiveCounter.incrementAndGet();
+        latency.addAndGet(System.currentTimeMillis() - msg.timestamp);
     }
 
     private void send(Msg msg) {
@@ -130,6 +134,7 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
             String toSend = msg.toString();
             LOGGER.debug("Sending:{}", toSend);
             publisher.send(toSend);
+            sendCounter.incrementAndGet();
         }
     }
 
@@ -173,10 +178,24 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
         }
     }
 
+    public void printStats() {
+        LOGGER.info("Total messages sent:{}", sendCounter.toString());
+        LOGGER.info("Total messages received:{}", receiveCounter.toString());
+        LOGGER.info("Average message latency:{}ms", latency.longValue() / receiveCounter.intValue());
+    }
+
+    public Map<String, Number> getStats() {
+        Map<String, Number> toReturn = new HashMap<>();
+        toReturn.put("Send", sendCounter.intValue());
+        toReturn.put("Receive", receiveCounter.intValue());
+        toReturn.put("AvgLatency", latency.longValue() / receiveCounter.intValue());
+        return toReturn;
+    }
 
     private class Msg {
         private final Object[] payload;
         private final Method method;
+        private final long timestamp;
 
         public Msg(Method method, Collection<Object> payload) {
             this(method, payload.toArray(new Object[payload.size()]));
@@ -185,14 +204,15 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
         public Msg(Method method, Object... payload) {
             this.method = method;
             this.payload = payload;
+            this.timestamp = System.currentTimeMillis();
         }
 
         public Msg(String input) {
-            String[] splited = input.split(SAP);
-            if (splited.length == 3) {
-                this.method = Method.valueOf(splited[0]);
-                this.payload = splited[1].split(",");
-                LOGGER.info("Message is deserialized after:" + (System.currentTimeMillis() - Long.valueOf(splited[2])) + "ms");
+            String[] fragments = input.split(SAP);
+            if (fragments.length == 3) {
+                this.method = Method.valueOf(fragments[0]);
+                this.payload = fragments[1].split(",");
+                this.timestamp = Long.valueOf(fragments[2]);
             } else {
                 throw new IllegalArgumentException("Can not parse input:" + input);
             }
@@ -201,7 +221,7 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
 
         @Override
         public String toString() {
-            return method.name() + SAP + String.join(",", Stream.of(payload).map(Object::toString).collect(Collectors.toSet())) + SAP + System.currentTimeMillis();
+            return method.name() + SAP + String.join(",", Stream.of(payload).map(Object::toString).collect(Collectors.toSet())) + SAP + timestamp;
         }
     }
 

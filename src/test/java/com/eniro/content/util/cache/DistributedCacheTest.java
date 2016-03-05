@@ -6,6 +6,8 @@ import org.junit.Test;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
 
@@ -46,13 +48,12 @@ public class DistributedCacheTest {
 
     @Test
     public void testSpeed() throws Exception {
-        int size = 1000;
-        long start=System.currentTimeMillis();
-        for (int i = 0; i < size; i++) {
-            instance1.invalidate("blah");
-
-        }
+        int size = 10000;
+        long start = System.currentTimeMillis();
+        IntStream.range(0, size).forEach(i -> instance1.invalidate("blah"));
         long took = System.currentTimeMillis() - start;
-        System.out.print("Finished in "+took+"ms mps:"+(1000/took)*size);
+        System.out.println("Finished in " + took + "ms mps:" + (1000f / took) * size);
+        Thread.sleep(5000);
+        instance2.printStats();
     }
 }
