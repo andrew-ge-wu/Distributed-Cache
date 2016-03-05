@@ -1,6 +1,8 @@
 package com.eniro.content.util.cache;
 
 import com.eniro.content.util.cache.cluster.StaticServerSupplier;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.*;
 import com.google.common.cache.Cache;
 import com.google.common.cache.ForwardingCache;
 import com.google.common.collect.Iterables;
@@ -9,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ;
 
+import java.io.ByteArrayInputStream;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -27,6 +30,7 @@ import java.util.stream.Stream;
 public class DistributedCache<V> extends ForwardingCache<String, V> {
     private static final Logger LOGGER = LoggerFactory.getLogger(DistributedCache.class);
     private final URI localBind;
+    private final Kryo serializer;
     private Collection<URI> subscriberList;
 
     private enum Method {INV}
@@ -53,6 +57,8 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
         this.serverSupplier = serverSupplier;
         this.localBind = localBind;
         updateSubscriber(excludeLocal);
+        this.serializer = new Kryo();
+        this.serializer.register(Msg.class);
     }
 
     public void init() {
@@ -181,14 +187,14 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
     public void printStats() {
         LOGGER.info("Total messages sent:{}", sendCounter.toString());
         LOGGER.info("Total messages received:{}", receiveCounter.toString());
-        LOGGER.info("Average message latency:{}ms", latency.longValue() / receiveCounter.intValue());
+        LOGGER.info("Average message latency:{}ms", receiveCounter.intValue() > 0 ? latency.longValue() / receiveCounter.intValue() : 0);
     }
 
     public Map<String, Number> getStats() {
         Map<String, Number> toReturn = new HashMap<>();
         toReturn.put("Send", sendCounter.intValue());
         toReturn.put("Receive", receiveCounter.intValue());
-        toReturn.put("AvgLatency", latency.longValue() / receiveCounter.intValue());
+        toReturn.put("AvgLatency", receiveCounter.intValue() > 0 ? latency.longValue() / receiveCounter.intValue() : 0);
         return toReturn;
     }
 
@@ -221,7 +227,9 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
 
         @Override
         public String toString() {
-            return method.name() + SAP + String.join(",", Stream.of(payload).map(Object::toString).collect(Collectors.toSet())) + SAP + timestamp;
+            return method.name() +
+                    SAP + String.join(",", Stream.of(payload).map(Object::toString).collect(Collectors.toSet())) +
+                    SAP + timestamp;
         }
     }
 
