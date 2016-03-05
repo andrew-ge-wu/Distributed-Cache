@@ -1,6 +1,7 @@
 package com.eniro.content.util.cache;
 
 import com.google.common.cache.CacheBuilder;
+import com.google.common.util.concurrent.RateLimiter;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -48,9 +49,13 @@ public class DistributedCacheTest {
 
     @Test
     public void testSpeed() throws Exception {
-        int size = 10000;
+        int size = 100000;
+        RateLimiter rateLimiter = RateLimiter.create(43000);
         long start = System.currentTimeMillis();
-        IntStream.range(0, size).forEach(i -> instance1.invalidate("blah"));
+        IntStream.range(0, size).forEach(i -> {
+            rateLimiter.acquire();
+            instance1.invalidate("blah");
+        });
         long took = System.currentTimeMillis() - start;
         System.out.println("Finished in " + took + "ms mps:" + (1000f / took) * size);
         Thread.sleep(5000);
