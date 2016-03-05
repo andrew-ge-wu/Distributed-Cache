@@ -31,7 +31,9 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
 
     private enum Method {INV}
 
-    private static final String SAP = "::";
+    public enum StatsKey {MsgSend, MsgReceive, AvgLatency, CacheStats}
+
+    private static final String SAP = "##";
     private final Cache<String, V> delegate;
     private final Supplier<Set<URI>> serverSupplier;
     private ZMQ.Socket publisher;
@@ -182,13 +184,15 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
         LOGGER.info("Total messages sent:{}", sendCounter.toString());
         LOGGER.info("Total messages received:{}", receiveCounter.toString());
         LOGGER.info("Average message latency:{}ms", receiveCounter.intValue() > 0 ? latency.longValue() / receiveCounter.intValue() : 0);
+        LOGGER.info(stats().toString());
     }
 
-    public Map<String, Number> getStats() {
-        Map<String, Number> toReturn = new HashMap<>();
-        toReturn.put("Send", sendCounter.intValue());
-        toReturn.put("Receive", receiveCounter.intValue());
-        toReturn.put("AvgLatency", receiveCounter.intValue() > 0 ? latency.longValue() / receiveCounter.intValue() : 0);
+    public Map<StatsKey, Object> getStats() {
+        Map<StatsKey, Object> toReturn = new HashMap<>();
+        toReturn.put(StatsKey.MsgSend, sendCounter.intValue());
+        toReturn.put(StatsKey.MsgReceive, receiveCounter.intValue());
+        toReturn.put(StatsKey.AvgLatency, receiveCounter.intValue() > 0 ? latency.longValue() / receiveCounter.intValue() : 0);
+        toReturn.put(StatsKey.CacheStats, stats());
         return toReturn;
     }
 
