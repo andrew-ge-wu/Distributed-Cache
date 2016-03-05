@@ -18,7 +18,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Project: <social-hub>
@@ -88,7 +87,7 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
     public void updateSubscriber(boolean excludeLocal) {
         Set<URI> subs = serverSupplier.get();
         if (excludeLocal) {
-            subs = subs.parallelStream().filter(uri -> {
+            subs = subs.stream().filter(uri -> {
                 try {
                     InetAddress address = InetAddress.getByName(uri.getHost());
                     return !address.isAnyLocalAddress() && !address.isLoopbackAddress();
@@ -226,7 +225,7 @@ public class DistributedCache<V> extends ForwardingCache<String, V> {
         @Override
         public String toString() {
             return method.name() +
-                    SAP + String.join(",", Stream.of(payload).map(Object::toString).collect(Collectors.toSet())) +
+                    SAP + String.join(",", Arrays.copyOf(payload, payload.length, String[].class)) +
                     SAP + timestamp;
         }
     }

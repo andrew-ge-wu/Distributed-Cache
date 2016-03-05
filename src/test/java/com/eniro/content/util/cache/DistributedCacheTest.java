@@ -50,7 +50,7 @@ public class DistributedCacheTest {
     @Test
     public void testSpeed() throws Exception {
         int size = 100000;
-        RateLimiter rateLimiter = RateLimiter.create(43000);
+        RateLimiter rateLimiter = RateLimiter.create(50000);
         long start = System.currentTimeMillis();
         IntStream.range(0, size).forEach(i -> {
             rateLimiter.acquire();
@@ -60,5 +60,6 @@ public class DistributedCacheTest {
         System.out.println("Finished in " + took + "ms mps:" + (1000f / took) * size);
         Thread.sleep(5000);
         instance2.printStats();
+        Assert.assertTrue(Long.class.cast(instance2.getStats().get(DistributedCache.StatsKey.AvgLatency)) < 5);
     }
 }
