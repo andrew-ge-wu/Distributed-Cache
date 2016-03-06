@@ -1,6 +1,6 @@
-package com.eniro.content.util.cache;
+package com.circuitwall.util.cache;
 
-import com.eniro.content.util.cache.cluster.StaticServerSupplier;
+import com.circuitwall.util.cache.cluster.StaticServerSupplier;
 import com.google.common.cache.Cache;
 import com.google.common.cache.ForwardingCache;
 import com.google.common.collect.Iterables;

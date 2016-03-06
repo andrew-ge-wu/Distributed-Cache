@@ -1,4 +1,4 @@
-package com.eniro.content.util.cache.cluster;
+package com.circuitwall.util.cache.cluster;
 
 import com.google.common.collect.Sets;
 

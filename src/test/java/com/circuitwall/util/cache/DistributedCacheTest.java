@@ -1,4 +1,4 @@
-package com.eniro.content.util.cache;
+package com.circuitwall.util.cache;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.util.concurrent.RateLimiter;
@@ -8,9 +8,6 @@ import org.junit.Test;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
-import static org.junit.Assert.*;
 
 /**
  * Project: <social-hub-common>
